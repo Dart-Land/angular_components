@@ -12,8 +12,6 @@ import 'package:angular_components/utils/browser/events/events.dart' as events;
 /// Tracks a hierarchy of visible popup and provides it closing logic.
 @Injectable()
 class PopupHierarchy {
-  static bool useMultiModalDismissal = false;
-
   final _visiblePopupStack = <PopupHierarchyElement>[];
 
   /// Parent pane of the first popup hierarchy element.
@@ -59,6 +57,9 @@ class PopupHierarchy {
   }
 
   void _onTriggersOutside(Event event) {
+    // Some weird event, ignore it.
+    if (event?.target == null) return;
+
     // Find parent pane if any, done dynamically as the modal pane can be
     // created by another app using ACX.
     // TODO(google): Find a way to compute it only when needed and make it
@@ -66,18 +67,14 @@ class PopupHierarchy {
     var modalPanes = document
         .querySelectorAll('.$overlayContainerClassName .pane.modal.visible');
     if (modalPanes.isNotEmpty) {
-      if (useMultiModalDismissal) {
-        // Only close popups that belong to the currently visible modal or whose
-        // modal is no longer visible. Note that since the modal may already
-        // have closed prior to this event being processed, it's possible in
-        // some situations that the popups of the level below will be closed as
-        // well.
-        if (_rootPane == null ||
-            (_rootPane != modalPanes.last && modalPanes.contains(_rootPane)))
-          return;
-      } else {
-        // This assumes there is only one visible modal at the same time.
-        if (_rootPane != modalPanes.first) return;
+      // Only close popups that belong to the currently visible modal or whose
+      // modal is no longer visible. Note that since the modal may already
+      // have closed prior to this event being processed, it's possible in
+      // some situations that the popups of the level below will be closed as
+      // well.
+      if (_rootPane == null ||
+          (_rootPane != modalPanes.last && modalPanes.contains(_rootPane))) {
+        return;
       }
     }
 

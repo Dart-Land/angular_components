@@ -1,3 +1,143 @@
+## 0.10.1
+
+### Component Updates
+
+#### Material Chips
+* Improved support for generics.
+* Stop setting popup attributes as those attributes are set on the input
+  directly.
+* Only set the `aria-owns` property and `inputAriaActivedescendent` when the
+  popup is open.
+* Add Sass mixin to allow text wrapping.
+
+#### Material Date Picker
+* Use `PopupSizeProvider` to control the height of the picker.
+* Add `rangeFormatter` input to the range picker.
+
+#### Material Expansion Panel
+* Improve accessibility.
+* Smooth expansion/collapse animations when headers are hidden.
+
+#### Material Icon
+* Add Sass mixin to use an SVG for an icon instead of the standard font icons.
+
+#### Material Input
+* Add Sass mixins to disable wrapping for hint text and hide leading and
+  trailing text.
+* Fix `MaterialPercentInputDirective` for LTR languages with leading % symbol.
+* Fix inconsistent margins in Safari browser.
+
+#### Material Menu
+* Add ability to provide extra label annotations for menu items.
+
+#### Material Select
+* Add Sass mixins to restrict item width, font size, line height, and padding.
+* Added generics support.
+* Add `activateFirstOption` input.
+
+#### Material Slider
+* No longer focusable when disabled.
+
+#### Material Stepper
+* Ensure items that can't be selected also can't be tabbed to.
+
+#### Material Tab
+* Add Sass mixin for a shadow below the tab strip.
+
+#### Material Tree
+* Add a dynamic content to accommodate custom elements.
+
+#### Material Toggle
+* Update the theme Sass mixin to include a grey color when the toggle is
+  disabled.
+
+#### Material Tooltip
+* Add Sass mixins to control padding, and max height.
+
+#### Material Yes/No Buttons
+* Allow No button to be disabled.
+
+#### Modal/Overlay
+* Add null guard check to event.
+* A11y improvements.
+* Attempt to restore focus when modal closes.
+
+### Miscellaneous
+* Update MDC Web styles to v0.40.0.
+* Improved support for generics in `HighlightAssistant`.
+* Handle unsupported `WheelEvent.deltaX` in scroll host.
+* Update scroll host support on iOS.
+* Allow dropdown components to contain an `auto_focus` directive.
+
+### Documentation
+* Minor docs fixes.
+
+## 0.10.0
+
+### Component Updates
+
+#### Material Auto Suggest Input
+* Rename `shouldClearOnSelection` to `shouldClearInputOnSelection`.
+* Improve keyboard navigation after mouse interactions in the popup.
+* Only allow deselection via in multi-selection mode in material auto suggest
+  input.
+* Disallow selecting disabled options via keyboard.
+* Remove deprecated `suggestions` and `sorted` inputs.
+* Update to support generics.
+
+#### Material Button
+* Mark certain fields as `visibleForTemplate` and drop the copied value where
+  not needed.
+
+#### Material Chips
+* Add Sass mixins to adjust border and font size of a single chip and border
+  padding, and background color, border, and padding of a set of chips.
+
+#### Material Expansion Panel
+* Wrap the buttons in a `defferredContent` directive. This is to help
+  accessibility and have those buttons not be available for screen readers.
+
+#### Material Input
+* Fix bug in `MaterialNumberValueAccessor` where null value won't clear previous
+  input.
+
+#### Material Dropdown Select
+* Provide the simplified selection and options inputs. Pull the common logic
+  into SelectionInputAdapter mixin class.
+* Migrate `ComponentRenderer` to `FactoryRenderer`.
+* Disallow selecting disabled options via keyboard.
+* Highlight disabled items when activated via keyboard.
+
+#### Material Menu
+* Add a secondary-label field. The appearance of this label is subject to minor
+  changes in the near future as the UX is still experimental.
+* Properly use the sub-menu's width, not the parent menu's width, to determine
+  the width of the menu.
+
+#### Material Radio
+* Tighten down the public API surface of the radio component by marking many of
+  them as `visibleForTemplate`.
+
+#### Material Select Searchbox
+* Add in null pointer protection when input is set without a filterable.
+
+#### Modal/Overlay
+* Enable useMultiModalDismissal by default.
+
+### Miscellaneous
+* Use typed provider for location providers.
+* Also corrected the type signature of `runOutsideAngular`, which in turn may
+  enable hint-level warnings by the analyzer. Users may be impacted if they fail
+  the build on hints.
+* Add `StickyController.onUpdate`, a stream which fires events immediately after
+  `StickyController` writes to the DOM, and expose it as an output on
+  `ElementScrollHost`.
+* Trigger the sticky controller sync on `scrollToPosition` calls.
+
+### Documentation
+* Add new readme for Material Dropdown Select.
+* Minor docs fixes.
+
 ## 0.9.2
 
 ### Component Updates

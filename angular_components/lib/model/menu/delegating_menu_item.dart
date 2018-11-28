@@ -46,6 +46,9 @@ class DelegatingMenuItem<SubMenuType> implements MenuItem<SubMenuType> {
   Icon get icon => _delegate.icon;
 
   @override
+  String get labelAnnotation => _delegate.labelAnnotation;
+
+  @override
   ObservableList<MenuItemAffix> get itemSuffixes => _delegate.itemSuffixes;
 
   @override
@@ -77,4 +80,10 @@ class DelegatingMenuItem<SubMenuType> implements MenuItem<SubMenuType> {
 
   @override
   BuiltList<String> get cssClasses => _delegate.cssClasses;
+
+  @override
+  bool get hasSecondaryLabel => _delegate.hasSecondaryLabel;
+
+  @override
+  String get secondaryLabel => _delegate.secondaryLabel;
 }

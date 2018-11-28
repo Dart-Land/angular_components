@@ -7,6 +7,7 @@ import 'dart:html' as html;
 
 import 'package:angular/angular.dart';
 import 'package:angular_forms/angular_forms.dart';
+import 'package:meta/meta.dart';
 import 'package:angular_components/button_decorator/button_decorator.dart';
 import 'package:angular_components/content/deferred_content.dart';
 import 'package:angular_components/dynamic_component/dynamic_component.dart';
@@ -26,6 +27,7 @@ import 'package:angular_components/material_spinner/material_spinner.dart';
 import 'package:angular_components/material_tooltip/material_tooltip.dart';
 import 'package:angular_components/mixins/highlight_assistant_mixin.dart';
 import 'package:angular_components/mixins/material_dropdown_base.dart';
+import 'package:angular_components/mixins/selection_input_adapter.dart';
 import 'package:angular_components/model/a11y/active_item.dart';
 import 'package:angular_components/model/a11y/active_item_directive.dart';
 import 'package:angular_components/model/a11y/keyboard_handler_mixin.dart';
@@ -46,18 +48,8 @@ import 'material_input.dart';
 
 typedef String _InputChangeCallback(String inputText);
 
-/// `material-auto-suggest-input` is an input field which provides the
-/// suggestions to auto-complete the input as the user types.
-///
-/// The caller of this component has to provide the list of initial/unfiltered
-/// suggestions which are filtered by component as user types. The filter is
-/// case insensitive.
-///
-/// Supports async suggestions through the [ObserveAware] interface implemented
-/// by [SelectionOptions].
-///
-/// The popup suggestion list has a max height and auto overflow. We can add a
-/// property for custom max height once there's a use case.
+/// See material_auto_suggest_input.md for an overview of the component.
+/// See examples for usage.
 @Component(
   selector: 'material-auto-suggest-input',
   providers: [
@@ -93,6 +85,10 @@ typedef String _InputChangeCallback(String inputText);
     NgIf,
     StopPropagationDirective,
   ],
+  directiveTypes: [
+    Typed<MaterialSelectDropdownItemComponent<String>>(on: 'emptyLabel'),
+    Typed<MaterialSelectDropdownItemComponent>.of([#T]),
+  ],
   templateUrl: 'material_auto_suggest_input.html',
   styleUrls: [
     'material_auto_suggest_input.scss.css',
@@ -101,15 +97,18 @@ typedef String _InputChangeCallback(String inputText);
   // TODO(google): Change to `Visibility.local` to reduce code size.
   visibility: Visibility.all,
 )
-class MaterialAutoSuggestInputComponent extends MaterialSelectBase
-    with MaterialInputWrapper, KeyboardHandlerMixin, HighlightAssistantMixin
+class MaterialAutoSuggestInputComponent<T> extends MaterialSelectBase<T>
+    with
+        SelectionInputAdapter<T>,
+        MaterialInputWrapper,
+        KeyboardHandlerMixin,
+        HighlightAssistantMixin<T>
     implements
         ControlValueAccessor,
         Focusable,
-        AfterChanges,
         OnInit,
         OnDestroy,
-        HasRenderer,
+        HasRenderer<T>,
         HasComponentRenderer,
         HasFactoryRenderer,
         DropdownHandle,
@@ -129,16 +128,15 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
 
   /// Keeps track of the item matching the filter as the suggestions are
   /// being updated.
-  final ActiveItemModel activeModel;
+  final ActiveItemModel<T> activeModel;
 
   bool _isInitialized = false;
 
   /// Whether to clear the input text once the item is selected from the menu.
   ///
   /// Defaults to false.
-  // TODO(google): rename this to shouldClearInputOnSelection.
   @Input()
-  bool shouldClearOnSelection = false;
+  bool shouldClearInputOnSelection = false;
 
   /// Whether to clear the selected value from the selection model when the
   /// input text changes.
@@ -176,9 +174,6 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
   bool _focusPending = false;
   MaterialInputComponent _input;
   _InputChangeCallback _callback;
-  bool _sorted = true;
-  List _suggestions = [];
-  bool _refreshOptions = false;
 
   /// The current text being displayed.
   String _inputText = '';
@@ -243,8 +238,6 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
   /// Listener for selection options changes.
   StreamSubscription _optionsListener;
 
-  StreamController _selectionChangeController;
-
   /// Direction of popup scaling.
   ///
   /// Valid values are `x`, `y`, or `null`.
@@ -270,21 +263,12 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
 
   // The fields below are deprecated.
 
-  @Deprecated('Use [options] instead')
-  @Input()
-  set suggestions(List value) {
-    _suggestions = value;
-    _refreshOptions = true;
-  }
-
-  List get suggestion => _suggestions;
-
   // Override renderer here to just add the @Input annotation and keep the
   // angular dependency out of models.
   /// A simple function to render the an item to string.
   @override
   @Input()
-  set itemRenderer(ItemRenderer<dynamic> value) => super.itemRenderer = value;
+  set itemRenderer(ItemRenderer<T> value) => super.itemRenderer = value;
 
   // Override renderer here to just add the @Input annotation and keep the
   // angular dependency out of models.
@@ -298,15 +282,6 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
   @override
   @Input()
   set factoryRenderer(FactoryRenderer value) => super.factoryRenderer = value;
-
-  @Deprecated('Caller should call .sort() on the options instead.')
-  @Input()
-  set sorted(bool value) {
-    _sorted = value;
-    _refreshOptions = true;
-  }
-
-  bool get sorted => _sorted;
 
   /// Function for use by NgFor for optionGroup to avoid recreating the
   /// DOM for the optionGroup.
@@ -359,52 +334,7 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
   }
 
   @override
-  ngAfterChanges() {
-    // If either the suggestions were changed or the value of sort was changed,
-    // rebuild the list of options.
-    if (_refreshOptions) {
-      var optionsList = List.from(_suggestions);
-      if (_sorted) {
-        optionsList.sort();
-      }
-      options =
-          StringSelectionOptions(optionsList, toFilterableString: itemRenderer);
-      _refreshOptions = false;
-    }
-  }
-
-  /// Emits the selected value(s) whenever selection changes.
-  ///
-  /// For single select, it will either be the selected value or null.
-  /// For multi select, it will a list of selected values or an empty list.
-  @Output()
-  Stream get selectionChange {
-    if (_selectionChangeController == null) {
-      _selectionChangeController = new StreamController();
-    }
-    return _selectionChangeController.stream;
-  }
-
-  /// Sets the selected value or selection model for the input.
-  ///
-  /// Accepts either a [SelectionModel], a selected value or null.
-  @Input('selection')
-  set selectionInput(dynamic value) {
-    if (value is SelectionModel) {
-      selection = value;
-    } else if (value == null) {
-      selection.clear();
-    } else {
-      assert(
-          isSingleSelect,
-          'Passing selected value through `selection` input is only supported '
-          'for single select.');
-      selection.select(value);
-    }
-  }
-
-  @override
-  set selection(SelectionModel selection) {
+  set selection(SelectionModel<T> selection) {
     super.selection = selection;
 
     if (isSingleSelect && selection.selectedValues.isNotEmpty) {
@@ -417,7 +347,7 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
     _selectionListener = selection.selectionChanges.listen((_) {
       // If the input fields shows the selected value then update it if the
       // selection changes or clear it if the selection model is empty.
-      if (shouldClearOnSelection) {
+      if (shouldClearInputOnSelection) {
         inputText = '';
       } else if (isSingleSelect) {
         var selectedItem = selection.selectedValues.isNotEmpty
@@ -430,37 +360,23 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
               _lastSelectedItem != null ? itemRenderer(_lastSelectedItem) : '';
         }
       }
-      if (_selectionChangeController != null) {
-        if (isSingleSelect) {
-          _selectionChangeController.add(selection.selectedValues.isNotEmpty
-              ? selection.selectedValues.first
-              : null);
-        } else {
-          _selectionChangeController.add(selection.selectedValues);
-        }
-      }
+      emitSelectionChange();
     });
   }
 
-  /// Sets the available options for the input.
+  /// Sets the available options for the selection component.
   ///
   /// Accepts either a [SelectionOptions] or a [List]. If a [List] is passed,
   /// the [StringSelectionOptions] class will be used to create the selection
   /// options.
   @Input('selectionOptions')
-  set selectionOptionsInput(dynamic value) {
-    if (value == null) return;
-    if (value is SelectionOptions) {
-      options = value;
-    } else if (value is List) {
-      options = StringSelectionOptions(value, toFilterableString: itemRenderer);
-    } else {
-      throw ArgumentError('Unsupported selection options type.');
-    }
+  @override
+  set optionsInput(dynamic value) {
+    super.optionsInput = value;
   }
 
   @override
-  set options(SelectionOptions options) {
+  set options(SelectionOptions<T> options) {
     if (options == null) return;
     super.options = options;
     _filterSuggestions();
@@ -600,12 +516,11 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
     }
 
     if (shouldClearSelectionOnInput &&
-        !shouldClearOnSelection &&
+        !shouldClearInputOnSelection &&
         _lastSelectedItem != null) {
-      // deselect previously selected item as the component was not asked to
+      // Deselect previously selected item as the component was not asked to
       // clear the text upon selection, indicating that the selection is bound
       // to the text.
-      // TODO(google): Should we clear the selection if they erase even a letter?
       if (inputText != itemRenderer(_lastSelectedItem)) {
         selection.deselect(_lastSelectedItem);
         _lastSelectedItem = null;
@@ -699,10 +614,28 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
     }
   }
 
+  /// Whether to deselect a selected item on click or keyboard enter.
+  bool get deselectOnActivate => isMultiSelect;
+
+  @protected
+  void onListItemSelected(item) {
+    if (isSingleSelect) {
+      showPopup = false;
+    }
+    if (!selection.isSelected(item)) {
+      if (!isOptionDisabled(item)) {
+        selection.select(item);
+      }
+    } else if (deselectOnActivate) {
+      selection.deselect(item);
+    }
+  }
+
   @override
   void handleUpKey(html.KeyboardEvent event) {
     if (showPopup) {
       event.preventDefault(); // Prevent input caret from jumping.
+      if (!_isFocused) focus();
       activeModel.activatePrevious();
     }
   }
@@ -711,6 +644,7 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
   void handleDownKey(html.KeyboardEvent event) {
     if (showPopup) {
       event.preventDefault(); // Prevent input caret from jumping.
+      if (!_isFocused) focus();
       activeModel.activateNext();
     }
   }
@@ -719,6 +653,7 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
   void handlePageUp(html.KeyboardEvent event) {
     if (showPopup) {
       event.preventDefault(); // Prevent page from scrolling.
+      if (!_isFocused) focus();
       activeModel.activateFirst();
     }
   }
@@ -727,6 +662,7 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
   void handlePageDown(html.KeyboardEvent event) {
     if (showPopup) {
       event.preventDefault(); // Prevent page from scrolling.
+      if (!_isFocused) focus();
       activeModel.activateLast();
     }
   }
@@ -781,17 +717,6 @@ class MaterialAutoSuggestInputComponent extends MaterialSelectBase
       _focusPending = true;
     } else {
       _input.focus();
-    }
-  }
-
-  void onListItemSelected(suggestion) {
-    if (isSingleSelect) {
-      showPopup = false;
-    }
-    if (selection.isSelected(suggestion)) {
-      selection.deselect(suggestion);
-    } else {
-      selection.select(suggestion);
     }
   }
 

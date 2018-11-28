@@ -48,6 +48,9 @@ class MaterialMenuDemoComponent implements OnDestroy {
   /// Demonstrates menu items with multiple suffixes.
   final MenuModel<MenuItem> menuModelWithAffixes;
 
+  /// Demonstrates text wrapping with long labels or secondary labels.
+  final MenuModel<MenuItem> menuModelWithLongLabels;
+
   final Disposer _disposer;
 
   MaterialMenuDemoComponent._(
@@ -57,12 +60,15 @@ class MaterialMenuDemoComponent implements OnDestroy {
       this.menuModelWithIcon,
       this.nestedMenuModel,
       this.selectableMenuModel,
-      this.menuModelWithAffixes);
+      this.menuModelWithAffixes,
+      this.menuModelWithLongLabels);
 
   factory MaterialMenuDemoComponent() {
     var colorSelection = SelectionModel<String>.single();
-    var makeColorMenuItem = (String color, {MenuModel<MenuItem> subMenu}) =>
-        ColorMenuItem(color, colorSelection, subMenu: subMenu);
+    var makeColorMenuItem = (String color,
+            {MenuModel<MenuItem> subMenu, String secondaryLabel}) =>
+        ColorMenuItem(color, colorSelection,
+            subMenu: subMenu, secondaryLabel: secondaryLabel);
     var menuModel = MenuModel<ColorMenuItem>([
       MenuItemGroup<ColorMenuItem>([
         makeColorMenuItem('red'),
@@ -87,12 +93,14 @@ class MaterialMenuDemoComponent implements OnDestroy {
                         makeColorMenuItem('lightblue'),
                         makeColorMenuItem('lightskyblue'),
                       ])
-                    ])),
+                    ]),
+                    secondaryLabel: 'Lighter shades of blue'),
                 makeColorMenuItem('lightgreen'),
                 makeColorMenuItem('lightsalmon'),
                 makeColorMenuItem('lightyellow'),
               ])
-            ])),
+            ]),
+            secondaryLabel: 'Lighter shades of colors'),
         MenuItem('Darks',
             subMenu: MenuModel<ColorMenuItem>([
               MenuItemGroup<ColorMenuItem>([
@@ -104,6 +112,26 @@ class MaterialMenuDemoComponent implements OnDestroy {
             ])),
       ])
     ]);
+    final menuModelWithLongLabels = MenuModel<MenuItem>([
+      MenuItemGroup<MenuItem>([
+        MenuItem('Short label'),
+        MenuItem(
+          'Another label',
+          secondaryLabel: 'Really long secondary label that should wrap',
+          subMenu: MenuModel<MenuItem>([
+            MenuItemGroup<MenuItem>([
+              MenuItem('Nested label that is long enough to wrap'),
+              MenuItem('Short label',
+                  secondaryLabel:
+                      'Secondary label that is long enough to wrap'),
+            ])
+          ], width: 2),
+        ),
+        MenuItem('A really long label that should wrap onto more lines'),
+        MenuItem('A long label with a secondary label that should also wrap',
+            secondaryLabel: 'This text is also long and should cause wrapping')
+      ])
+    ], width: 2);
 
     final disposer = Disposer.oneShot();
 
@@ -242,7 +270,8 @@ class MaterialMenuDemoComponent implements OnDestroy {
         menuModelWithIcon,
         nestedMenuModel,
         selectableMenuModel,
-        menuModelWithAffixes);
+        menuModelWithAffixes,
+        menuModelWithLongLabels);
   }
 
   @override
@@ -257,8 +286,9 @@ class MaterialMenuDemoComponent implements OnDestroy {
 
 class ColorMenuItem extends MenuItem<ColorMenuItem> {
   ColorMenuItem(String label, SelectionModel selection,
-      {Icon icon, MenuModel<MenuItem> subMenu})
-      : super(label, icon: icon, subMenu: subMenu) {
+      {Icon icon, MenuModel<MenuItem> subMenu, String secondaryLabel})
+      : super(label,
+            icon: icon, subMenu: subMenu, secondaryLabel: secondaryLabel) {
     this.action = () {
       selection.select(label);
     };

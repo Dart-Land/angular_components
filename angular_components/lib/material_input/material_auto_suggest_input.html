@@ -4,6 +4,7 @@
  BSD-style license that can be found in the LICENSE file.
 -->
 <material-input popupSource
+    initPopupAriaAttributes="false"
     alignPositionY="after"
     #input="popupSource"
     [id]="inputId"
@@ -23,10 +24,10 @@
     [floatingLabel]="floatingLabel"
     role="combobox"
     [inputAriaLabel]="ariaLabel"
-    [inputAriaOwns]="popupId"
+    [inputAriaOwns]="showPopup ? popupId : null"
     inputAriaHasPopup="listbox"
     [inputAriaExpanded]="showPopup"
-    [inputAriaActivedescendent]="activeModel.activeId"
+    [inputAriaActivedescendent]="showPopup ? activeModel.activeId : null"
     inputAriaAutocomplete="list"
     [leadingText]="leadingText"
     [leadingGlyph]="leadingGlyph"
@@ -75,7 +76,10 @@
     <ng-content select="[header]"></ng-content>
   </div>
   <!-- Deferred to prevent child content from being created too early. -->
-  <focus-trap *cachedDeferredContent (keyup)="onKeyUp">
+  <focus-trap *cachedDeferredContent
+      (keydown)="onKeyDown"
+      (keypress)="onKeyPress"
+      (keyup)="onKeyUp">
     <div *ngIf="showLoadingSpinner" class="loading">
       <material-spinner></material-spinner>
     </div>
@@ -109,6 +113,7 @@
             (mouseenter)="activeModel.activate(null)">
         </dynamic-component>
         <material-select-dropdown-item
+            #emptyLabel
             *ngIf="suggestionGroup.isEmpty && suggestionGroup.hasEmptyLabel"
             keyboardOnlyFocusIndicator
             [disabled]="true"

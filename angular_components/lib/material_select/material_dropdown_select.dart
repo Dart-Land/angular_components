@@ -24,6 +24,7 @@ import 'package:angular_components/material_select/material_select_dropdown_item
 import 'package:angular_components/material_select/shift_click_selection.dart';
 import 'package:angular_components/mixins/button_wrapper.dart';
 import 'package:angular_components/mixins/material_dropdown_base.dart';
+import 'package:angular_components/mixins/selection_input_adapter.dart';
 import 'package:angular_components/mixins/track_layout_changes.dart';
 import 'package:angular_components/model/a11y/active_item.dart';
 import 'package:angular_components/model/a11y/active_item_directive.dart';
@@ -37,30 +38,7 @@ import 'package:angular_components/model/ui/template_support.dart';
 import 'package:angular_components/utils/angular/css/css.dart';
 import 'package:angular_components/utils/id_generator/id_generator.dart';
 
-/// Material Dropdown Select is a button-triggered dropdown.
-///
-/// The `material-dropdown-select` component combines the APIs of
-/// `material-select`, and `material-button-dropdown`.
-///
-/// When used with a single selection model, the dropdown closes upon selection.
-/// When using a multi-selection model, the user must close the dropdown by
-/// clicking outside of it.
-///
-/// Selection options may be declared manually by passing `material-select-item`
-/// elements. When using the declarative API, the `SelectionModel` and
-/// `SelectionOptions` are not injected, so marking the item as selected is not
-/// automatic.
-///
-/// If an `OptionGroup` is empty and has an `emptyLabel` defined, the dropdown
-/// will include it with the other groups. If `emptyLabel` is not defined for
-/// an empty group it will not appear in the list.
-///
-/// Supports async suggestions through the [ObserveAware] interface implemented
-/// by [SelectionOptions].
-///
-/// The material-select has a fixed max height and auto overflow. We can add a
-/// property for custom max height once there's a use case.
-///
+/// See material_dropdown_select.md for an overview of the component.
 /// See examples for usage.
 ///
 /// __Attributes:__
@@ -95,18 +73,24 @@ import 'package:angular_components/utils/id_generator/id_generator.dart';
     NgIf,
     PopupSourceDirective,
   ],
+  directiveTypes: [
+    Typed<MaterialSelectDropdownItemComponent<String>>(on: 'deselectItem'),
+    Typed<MaterialSelectDropdownItemComponent<String>>(on: 'emptyGroupLabel'),
+    Typed<MaterialSelectDropdownItemComponent>.of([#T]),
+  ],
   templateUrl: 'material_dropdown_select.html',
   styleUrls: ['material_dropdown_select.scss.css'],
   visibility: Visibility.all, // injected by directives
 )
-class MaterialDropdownSelectComponent extends MaterialSelectBase
+class MaterialDropdownSelectComponent<T> extends MaterialSelectBase<T>
     with
         MaterialDropdownBase,
+        SelectionInputAdapter<T>,
         MaterialButtonWrapper,
         TrackLayoutChangesMixin,
         KeyboardHandlerMixin,
         ActivateItemOnKeyPressMixin,
-        ShiftClickSelectionMixin
+        ShiftClickSelectionMixin<T>
     implements PopupSizeProvider, OnChanges, OnDestroy {
   /// Function for use by NgFor for optionGroup.
   ///
@@ -133,10 +117,10 @@ class MaterialDropdownSelectComponent extends MaterialSelectBase
   String buttonAriaLabelledBy;
 
   /// Listener for options changes.
-  StreamSubscription _optionsListener;
+  StreamSubscription<List<OptionGroup<T>>> _optionsListener;
 
   /// Listener for selection changes.
-  StreamSubscription _selectionListener;
+  StreamSubscription<List<SelectionChangeRecord<T>>> _selectionListener;
 
   /// If a parent provides a [PopupSizeProvider], the provider will be used
   /// instead of the implementation of this class.
@@ -166,18 +150,17 @@ class MaterialDropdownSelectComponent extends MaterialSelectBase
 
   bool get deselectOnActivate => isMultiSelect || _deselectOnActivate;
 
-  @Input()
-  @Deprecated(
-      'Use labelFactory instead it allows for better tree-shakable code.')
-  ComponentRenderer labelRenderer;
-
   /// Factory that returns a component to be used for rendering group labels.
   @Input()
   FactoryRenderer labelFactory;
 
   // Whether a custom label render is used.
-  bool get hasCustomLabelRenderer =>
-      labelRenderer != null || labelFactory != null;
+  bool get hasCustomLabelRenderer => labelFactory != null;
+
+  /// Whether to activate (visually focus but not select) the first available
+  /// option when the dropdown opens.
+  @Input()
+  bool activateFirstOption = false;
 
   /// CSS classes from the root element, passed to the popup to allow scoping of
   /// mixins.
@@ -250,6 +233,7 @@ class MaterialDropdownSelectComponent extends MaterialSelectBase
 
   /// Function to convert an option object to string.
   ///
+  // TODO(google): Fix this now that generics are supported.
   // Ideally, [value] would be a [ItemRenderer<T>], where T is also the type
   // parameter of the SelectionOptions and the SelectionModel, as parent
   // components typically use a function that accepts a specific type (T).
@@ -278,12 +262,30 @@ class MaterialDropdownSelectComponent extends MaterialSelectBase
   set visible(bool value) {
     super.visible = value;
     resetEnteredKeys();
+    if (value) {
+      // Ensure that the current active item matches the current value.
+      // For instance it is cleared on mouse out.
+      // Note we don't allow deactivation because some teams incorrectly use
+      // activeItemLabel instead of selectedItemLabel, and this breaks them.
+      // TODO(google): remove allowDeactivate when client tests are fixed.
+      // https://test.corp.google.com/ui#id=OCL:219567674:BASE:219582901:1541045481973:dd9a971c
+      _setInitialActiveItem(allowDeactivate: false);
+    }
   }
 
-  /// The options to use for this selection model.
-  @Input()
+  /// Sets the available options for the selection component.
+  ///
+  /// Accepts either a [SelectionOptions] or a [List]. If a [List] is passed,
+  /// the [StringSelectionOptions] class will be used to create the selection
+  /// options.
+  @Input('options')
   @override
-  set options(SelectionOptions newOptions) {
+  set optionsInput(dynamic value) {
+    super.optionsInput = value;
+  }
+
+  @override
+  set options(SelectionOptions<T> newOptions) {
     super.options = newOptions;
 
     _updateActiveModel();
@@ -316,10 +318,8 @@ class MaterialDropdownSelectComponent extends MaterialSelectBase
     _blur.add(event);
   }
 
-  /// The selection model this component controls.
-  @Input()
   @override
-  set selection(SelectionModel newSelection) {
+  set selection(SelectionModel<T> newSelection) {
     super.selection = newSelection;
     _setInitialActiveItem();
 
@@ -331,6 +331,7 @@ class MaterialDropdownSelectComponent extends MaterialSelectBase
       if (added != null && !activeModel.isActive(added)) {
         activeModel.activate(added);
       }
+      emitSelectionChange();
     });
   }
 
@@ -342,15 +343,18 @@ class MaterialDropdownSelectComponent extends MaterialSelectBase
     activeModel.items = items;
   }
 
-  void _setInitialActiveItem() {
+  void _setInitialActiveItem({bool allowDeactivate = true}) {
     if (selection == null || selection.selectedValues.isEmpty) {
-      activeModel.activate(null);
+      if (allowDeactivate) activeModel.activate(null);
     } else if (activeModel.activeItem == null ||
         (showDeselectItem && activeModel.activeItem == deselectLabel) ||
         !selection.isSelected(activeModel.activeItem)) {
       // If the current active item is not selected, activate the first selected
       // item.
       activeModel.activate(selection.selectedValues.first);
+    }
+    if (activateFirstOption && activeModel.activeItem == null) {
+      activeModel.activateFirst();
     }
   }
 
@@ -359,11 +363,13 @@ class MaterialDropdownSelectComponent extends MaterialSelectBase
     event.preventDefault();
     activateFunction();
     // Only select if the popup is not visible.
-    if (!visible &&
-        selection != null &&
-        isSingleSelect &&
-        activeModel.activeItem != null) {
-      selection.select(activeModel.activeItem);
+    if (!visible && selection != null && isSingleSelect) {
+      var item = activeModel.activeItem;
+      if (item == deselectLabel) {
+        deselectCurrentSelection();
+      } else if (item != null && !isOptionDisabled(item)) {
+        selection.select(item);
+      }
     }
   }
 
@@ -407,7 +413,9 @@ class MaterialDropdownSelectComponent extends MaterialSelectBase
         if (item == deselectLabel) {
           deselectCurrentSelection();
         } else if (!selection.isSelected(item)) {
-          selection.select(item);
+          if (!isOptionDisabled(item)) {
+            selection.select(item);
+          }
         } else if (deselectOnActivate) {
           selection.deselect(item);
         }
@@ -499,17 +507,17 @@ class MaterialDropdownSelectComponent extends MaterialSelectBase
   }
 
   /// If selectionOptions implements Selectable, it is called.
-  bool isOptionDisabled(Object item) {
+  bool isOptionDisabled(T item) {
     // TODO: Verify if this can be simplified to .isDisabledIn.
     //
     // The prior code did a check for `!= SelectableOption.Selected`. It is
     // possible there are existing users that are relying on `.Hidden` to mean
     // disabled, for example.
-    return !Selectable.isSelectableIn(options, item, true);
+    return !Selectable.isSelectableIn(options, item);
   }
 
   /// Whether to hide [item].
-  bool isOptionHidden(Object item) {
+  bool isOptionHidden(T item) {
     return Selectable.isHiddenIn(options, item, false);
   }
 
@@ -560,7 +568,8 @@ class ActivateItemOnKeyPressMixin {
       return searchString.startsWith(keys);
     };
     var maybeSelectOption = (option, String keys) {
-      if (startsWith(option, keys)) {
+      if (Selectable.isSelectableIn(options, option) &&
+          startsWith(option, keys)) {
         activeModel.activate(option);
         selection?.select(option);
         _enteredKeys = keys;

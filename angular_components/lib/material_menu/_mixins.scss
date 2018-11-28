@@ -45,7 +45,10 @@
 @mixin menu-item-text-wrap {
   ::ng-deep .menu-item-label {
     white-space: normal;
-    line-height: 1.25em;
+  }
+
+  ::ng-deep .menu-item-secondary-label {
+    white-space: normal;
   }
 }
 
@@ -85,6 +88,14 @@
 // classes passed in through MenuItem.
 @mixin menu-item-icon-color($selector, $color) {
   ::ng-deep #{$selector}.menu-item material-icon.material-list-item-primary {
+    color: $color;
+  }
+}
+
+// Sets the color of the label annotation. $selector should be one of the css
+// classes passed in through MenuItem.
+@mixin label-annotation-color($selector, $color) {
+  ::ng-deep #{$selector}.menu-item .menu-item-label-section .label-annotation {
     color: $color;
   }
 }

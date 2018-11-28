@@ -2,11 +2,12 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-/// Interface that defines how a type `T` should be formatted.
+/// Interface that defines how a type `T` should be formatted into a String.
 abstract class Formatter<T> {
   String format(T value, [String parameters]);
 }
 
+/// Generates list of css classes based on cell value.
 abstract class StyleFormatter<T> implements Formatter<T> {
   /// Returns list of classes to style value.
   List<String> computeStyle(T value, [String parameters]) => const [];
@@ -16,19 +17,10 @@ abstract class StyleFormatter<T> implements Formatter<T> {
 /// source field.
 ///
 /// T is the type of the value that is being formatted.
-/// In order to use, extend the [Formatter] class and implement the
-/// [EntityFormatter] interface, then have the format method return null.
 ///
-/// Example usage:
-/// ```dart
-/// class MyFormatter extends Formatter implements EntityFormatter {
-///   @override
-///   String format(value, [String args]) => null;
-///
-///   @override
-///   String formatEntityField(Map entity, value, [String args]) => ...
-/// }
-/// ```
+/// Please keep it mind that this makes the formatter much less reusable,
+/// it is worth documenting what entities it does support or what fields are
+/// required/optional for it to work correctly.
 abstract class EntityFormatter<T> implements Formatter<T> {
   String formatEntityField(Map entity, T value, [String parameters]);
 }

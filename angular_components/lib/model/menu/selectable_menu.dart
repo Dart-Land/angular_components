@@ -89,10 +89,16 @@ class SelectableMenuItem<ItemType> extends PropertyChangeNotifier
   final String tooltip;
 
   @override
+  final String labelAnnotation;
+
+  @override
   final ObservableList<MenuItemAffix> itemSuffixes;
 
   @override
   final BuiltList<String> cssClasses;
+
+  @override
+  final String secondaryLabel;
 
   SelectableMenuItem(
       {@required this.value,
@@ -101,6 +107,8 @@ class SelectableMenuItem<ItemType> extends PropertyChangeNotifier
       @Deprecated('Please use itemSuffixes instead') this.secondaryIcon,
       this.subMenu,
       this.tooltip,
+      this.secondaryLabel,
+      this.labelAnnotation,
       Iterable<String> cssClasses,
       Function action = _noOp,
       SelectableOption selectableState = SelectableOption.Selectable,
@@ -172,6 +180,9 @@ class SelectableMenuItem<ItemType> extends PropertyChangeNotifier
     _action = value;
     notifyPropertyChange(#action, _action, value);
   }
+
+  @override
+  bool get hasSecondaryLabel => secondaryLabel != null;
 
   /// Visibility state of the secondary icon.
   ///

@@ -134,7 +134,15 @@ class MenuModel<T> implements HasIcon, AcceptsWidth {
 ///                  action:action, icon:icon, subMenu:subMenu);
 class MenuItem<T> implements HasUIDisplayName, HasIcon, HasHoverIcon {
   final String label;
+  final String secondaryLabel;
   final String tooltip;
+
+  /// A superscript annotation that is shown to the right of the label.
+  ///
+  /// Note that this annotation cannot be one of the [itemSuffixes] because
+  /// [itemSuffixes] are right aligned in the menu, while this should be left
+  /// aligned close to the label.
+  final String labelAnnotation;
   final MenuModel<T> subMenu;
 
   Function action;
@@ -171,6 +179,7 @@ class MenuItem<T> implements HasUIDisplayName, HasIcon, HasHoverIcon {
   bool get showTooltip => isNotEmpty(tooltip);
   @override
   String get uiDisplayName => label;
+  bool get hasSecondaryLabel => secondaryLabel != null;
 
   /// The constructor for a [MenuItem] which displays [label].
   ///
@@ -190,13 +199,15 @@ class MenuItem<T> implements HasUIDisplayName, HasIcon, HasHoverIcon {
       this.tooltip,
       this.action,
       this.icon,
+      this.labelAnnotation,
       Iterable<String> cssClasses,
       @Deprecated('Please use itemSuffixes instead')
           this.secondaryIcon,
       ObservableList<MenuItemAffix> itemSuffixes,
       @Deprecated('Please use itemSuffixes instead')
           ObservableReference<IconVisibility> secondaryIconVisibility,
-      this.subMenu})
+      this.subMenu,
+      this.secondaryLabel})
       : _secondaryIconVisibility = secondaryIconVisibility ??
             ObservableReference<IconVisibility>(IconVisibility.visible),
         itemSuffixes = itemSuffixes ?? ObservableList<MenuItemAffix>(),
@@ -210,6 +221,8 @@ class MenuItem<T> implements HasUIDisplayName, HasIcon, HasHoverIcon {
   @override
   String toString() => {
         'label': label,
+        'secondaryLabel': secondaryLabel,
+        'labelAnnotation': labelAnnotation,
         'enabled': enabled,
         'icon': icon,
         'secondaryIcon': secondaryIcon,
